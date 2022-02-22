@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./App.css";
 import Container from "./components/Container";
 import ImageBox from "./components/ImageBox";
+import Loading from "./components/Lodaing";
 
 const pictures = [
   "https://images.pexels.com/photos/170811/pexels-photo-170811.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500",
@@ -27,13 +28,20 @@ const imagesArrayCreator = (iamagesPaths: string[]) => {
     while (arr[firstPosition]) {
       firstPosition = Math.round(Math.random() * 15);
     }
-    arr[firstPosition] = photoObj;
+    arr[firstPosition] = {
+      ...photoObj,
+      uniqueKey: `${photoObj.key}${firstPosition}`,
+    };
     let secondPosition = Math.round(Math.random() * 15);
     while (arr[secondPosition]) {
       secondPosition = Math.round(Math.random() * 15);
     }
-    arr[secondPosition] = photoObj;
+    arr[secondPosition] = {
+      ...photoObj,
+      uniqueKey: `${photoObj.key}${secondPosition}`,
+    };
   });
+  console.log(arr);
   return arr;
 };
 const imagesArray = imagesArrayCreator(pictures);
@@ -41,21 +49,57 @@ const imagesArray = imagesArrayCreator(pictures);
 function App() {
   const [flipedImages, setFlipedImages] = useState<number[]>([]);
   const [firstFlipingKey, setFirstFlipingKey] = useState<number | null>(null);
-  // const [secondFlipingKey, setSecondFlipingKey] = useState<number | null>(null);
+  const [secondFlipingKey, setSecondFlipingKey] = useState<number | null>(null);
+  const [flipingBlocked, setFlipingBlocked] = useState<boolean>(false)
 
-  
+  const [showLoading, setShowLoading] = useState(true);
 
-  const handleFlip = (key: number) => {
+  const handleFlip = (key: number): void => {
     console.log(key);
-    
     if (!firstFlipingKey) {
       setFirstFlipingKey(key);
-    } else if (key === firstFlipingKey) {
-      setFlipedImages([...flipedImages, key]);
-    } else {
-      setFirstFlipingKey(null);
+      return;
     }
+    setSecondFlipingKey(key);
   };
+
+  useEffect(() => {
+    if(secondFlipingKey) {
+      const firstImage = imagesArray.find((elem: any) => elem.uniqueKey === firstFlipingKey);
+      const secondImage = imagesArray.find((elem: any) => elem.uniqueKey === secondFlipingKey);
+      if(!firstImage || !secondImage) {
+        return;
+      }
+      if(firstImage.key === secondImage.key) {
+        setFirstFlipingKey(null);
+        setSecondFlipingKey(null);
+        setFlipedImages([...flipedImages, firstImage.key])
+      } else {
+        setFlipingBlocked(true)
+        setTimeout(() => {
+          setFirstFlipingKey(null);
+          setSecondFlipingKey(null);
+          setFlipingBlocked(false);
+        }, 1000);
+      }
+    }
+
+  }, [secondFlipingKey, flipedImages, firstFlipingKey]);
+
+  useEffect(() => {
+    setTimeout(() => {
+      setShowLoading(false);
+      setFlipedImages([...imagesArray.map((i: any) => i.key)])
+    }, 3000);
+    setTimeout(() => {
+      setFlipedImages([])
+    }, 4000)
+  }, []);
+
+
+  if (showLoading) {
+    return <Loading/>
+  }
 
   return (
     <div className="App">
@@ -64,15 +108,21 @@ function App() {
         {imagesArray.map((photo: any, index: number) => {
           return (
             <ImageBox
-              handleFlip={handleFlip}
+              handleFlip={flipingBlocked ? () => {} : handleFlip}
               key={photo.id + index}
               imageKey={photo.key}
+              imageUniqueKey={photo.uniqueKey}
               imageUrl={photo.url}
-              fliped={flipedImages.includes(photo.key) || photo.key === firstFlipingKey}
+              fliped={
+                flipedImages.includes(photo.key) ||
+                photo.uniqueKey === firstFlipingKey ||
+                photo.uniqueKey === secondFlipingKey
+              }
             />
           );
         })}
       </Container>
+      
     </div>
   );
 }
